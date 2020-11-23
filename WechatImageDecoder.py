@@ -1,6 +1,11 @@
 #!/usr/bin/env python
-# zhangxiaoyang.hit[at]gmail.com
+# coding=utf-8
 
+# @author zhangxiaoyang.hit@gmail.com
+# @author albertzhang.pro@gmail.com
+
+import os
+import sys
 import re
 
 class WechatImageDecoder:
@@ -23,13 +28,13 @@ class WechatImageDecoder:
         return decoders[None]
 
     def _decode_pc_dat(self, dat_file):
-        
+
         def do_magic(header_code, buf):
             return header_code ^ list(buf)[0] if buf else 0x00
-        
+
         def decode(magic, buf):
             return bytearray([b ^ magic for b in list(buf)])
-            
+
         def guess_encoding(buf):
             headers = {
                 'jpg': (0xff, 0xd8),
@@ -37,19 +42,20 @@ class WechatImageDecoder:
                 'gif': (0x47, 0x49),
             }
             for encoding in headers:
-                header_code, check_code = headers[encoding] 
+                header_code, check_code = headers[encoding]
                 magic = do_magic(header_code, buf)
                 _, code = decode(magic, buf[:2])
                 if check_code == code:
                     return (encoding, magic)
             print('Decode failed')
-            sys.exit(1) 
+            sys.exit(1)
 
         with open(dat_file, 'rb') as f:
             buf = bytearray(f.read())
         file_type, magic = guess_encoding(buf)
 
         img_file = re.sub(r'.dat$', '.' + file_type, dat_file)
+        img_file = "D:\\output" + os.sep + os.path.basename(img_file)
         with open(img_file, 'wb') as f:
             new_buf = decode(magic, buf)
             f.write(new_buf)
@@ -71,26 +77,42 @@ class WechatImageDecoder:
     def _decode_unknown_dat(self, dat_file):
         raise Exception('Unknown file type')
 
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: raise
+
+def fileNameIsDAT(fn):
+    isPNG = False
+    fnLen = len(fn)
+    if fnLen > 4: # > x.dat
+        fext = fn[fnLen-4:fnLen]
+        if fext == ".dat":
+            isPNG = True
+    return isPNG
 
 if __name__ == '__main__':
     import sys
     if len(sys.argv) != 2:
         print('\n'.join([
             'Usage:',
-            '  python WechatImageDecoder.py [dat_file]',
-            '',
-            'Example:',
-            '  # PC:',
-            '  python WechatImageDecoder.py 1234567890.dat',
-            '',
-            '  # Android:',
-            '  python WechatImageDecoder.py cache.data.10'
+            '  python WechatImageDecoder.py [dat_file_folder]'
         ]))
         sys.exit(1)
 
-    _,  dat_file = sys.argv[:2]
+    _,  dat_file_folder = sys.argv[:2]
     try:
-        WechatImageDecoder(dat_file)
+        mkdir_p("D:\\output")
+        files = os.listdir(dat_file_folder)
+        for fn in files:
+            if not fileNameIsDAT(fn):
+                continue
+            fp = dat_file_folder + os.sep + fn
+            print(fp)
+            WechatImageDecoder(fp)
     except Exception as e:
         print(e)
         sys.exit(1)
